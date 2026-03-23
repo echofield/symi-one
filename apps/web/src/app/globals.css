@@ -1,0 +1,338 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --forest: #1B4332;
+    --forest-50: #E8F5E9;
+    --forest-600: #164028;
+    --background: #FAFAFA;
+    --foreground: #0A0A0A;
+    --surface: #FFFFFF;
+    --muted: #71717A;
+    --border: #E4E4E7;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-weight: 300;
+    font-feature-settings: 'kern' 1, 'liga' 1;
+  }
+
+  ::selection {
+    background: var(--forest);
+    color: white;
+  }
+}
+
+@layer components {
+  /* SYMI Button System */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    background-color: var(--forest);
+    color: white;
+    font-weight: 400;
+    font-size: 0.875rem;
+    letter-spacing: 0.025em;
+    border: 2px solid var(--forest);
+    transition: all 0.2s ease-out;
+  }
+
+  .btn-primary:hover {
+    background-color: transparent;
+    color: var(--forest);
+  }
+
+  .btn-primary:active {
+    transform: translate(2px, 2px);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-primary:disabled:hover {
+    background-color: var(--forest);
+    color: white;
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1.5rem;
+    background-color: transparent;
+    color: var(--forest);
+    font-weight: 400;
+    font-size: 0.875rem;
+    letter-spacing: 0.025em;
+    border: 2px solid var(--forest);
+    transition: all 0.2s ease-out;
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--forest);
+    color: white;
+  }
+
+  .btn-secondary:active {
+    transform: translate(2px, 2px);
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    background-color: transparent;
+    color: var(--foreground);
+    font-weight: 400;
+    font-size: 0.875rem;
+    border: 2px solid transparent;
+    transition: all 0.2s ease-out;
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--forest);
+    color: var(--forest);
+  }
+
+  /* SYMI Card System */
+  .card {
+    background-color: var(--surface);
+    border: 2px solid var(--border);
+    padding: 1.5rem;
+    transition: all 0.3s ease-out;
+  }
+
+  .card-interactive {
+    background-color: var(--surface);
+    border: 2px solid var(--border);
+    padding: 1.5rem;
+    transition: all 0.3s ease-out;
+  }
+
+  .card-interactive:hover {
+    border-color: var(--forest);
+    box-shadow: 4px 4px 0 0 var(--forest);
+    transform: translate(-4px, -4px);
+  }
+
+  .card-elevated {
+    background-color: var(--surface);
+    border: 2px solid var(--border);
+    padding: 1.5rem;
+    box-shadow: 4px 4px 0 0 var(--forest);
+  }
+
+  /* SYMI Input System */
+  .input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background-color: var(--surface);
+    border: 2px solid var(--border);
+    color: var(--foreground);
+    font-weight: 300;
+    font-size: 1rem;
+    line-height: 1.6;
+    transition: all 0.2s ease-out;
+  }
+
+  .input::placeholder {
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .input:focus {
+    outline: none;
+    border-color: var(--forest);
+  }
+
+  .input:disabled {
+    background-color: var(--background);
+    cursor: not-allowed;
+  }
+
+  .input-error {
+    border-color: #EF4444;
+  }
+
+  .input-error:focus {
+    border-color: #EF4444;
+  }
+
+  /* SYMI Label */
+  .label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  /* SYMI Badge System */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 2px solid;
+  }
+
+  .badge-default {
+    border-color: var(--border);
+    color: var(--muted);
+    background-color: transparent;
+  }
+
+  .badge-success {
+    border-color: var(--forest);
+    color: var(--forest);
+    background-color: var(--forest-50);
+  }
+
+  .badge-warning {
+    border-color: #D97706;
+    color: #B45309;
+    background-color: #FEF3C7;
+  }
+
+  .badge-error {
+    border-color: #EF4444;
+    color: #DC2626;
+    background-color: #FEE2E2;
+  }
+
+  .badge-info {
+    border-color: var(--forest);
+    color: white;
+    background-color: var(--forest);
+  }
+
+  /* Staggered Animation Classes */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
+  .stagger-6 { animation-delay: 0.6s; }
+
+  /* Grid overlay for development */
+  .debug-grid {
+    background-image:
+      linear-gradient(to right, rgba(27, 67, 50, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(27, 67, 50, 0.05) 1px, transparent 1px);
+    background-size: 8px 8px;
+  }
+}
+
+/* Stripe Elements override for SYMI design */
+.StripeElement {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background-color: var(--surface);
+  border: 2px solid var(--border);
+  transition: border-color 0.2s ease-out;
+}
+
+.StripeElement--focus {
+  border-color: var(--forest) !important;
+  outline: none;
+}
+
+.StripeElement--invalid {
+  border-color: #EF4444 !important;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.6s linear infinite;
+}
+
+/* Animation keyframes */
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes scale-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Animation utility classes */
+.animate-fade-up {
+  animation: fade-up 0.6s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out forwards;
+}
+
+/* Smooth page transitions */
+.page-enter {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}

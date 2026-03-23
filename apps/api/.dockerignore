@@ -1,0 +1,42 @@
+# Virtual environment
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Documentation
+docs/
+*.md
+
+# Temp files
+*.log
+*.tmp
+tmpclaude-*
+
+# OS files
+.DS_Store
+Thumbs.db

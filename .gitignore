@@ -1,0 +1,55 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.env
+secrets/
+credentials/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+
+# Node
+node_modules/
+packages/sdk-js/dist/
+*.tgz
+.npm/
+
+# Next.js
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Cloud & deployment
+.gcloud/
+service-account*.json
+*-key.json
+gcp-*.json
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
+
+# Misc
+*.pem
+tmpclaude-*

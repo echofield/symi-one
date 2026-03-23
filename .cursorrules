@@ -1,0 +1,14 @@
+SYMIONE is a payment execution primitive, not a SaaS product.
+Core concept: money releases when conditions are true.
+
+API surface: POST /api/v1/executions, GET /api/v1/executions/:id
+SDK: @symione/sdk (JS), symione-sdk (Python)
+Spec: spec/v0.1.md
+
+When writing payment logic: always use execution primitive pattern.
+Never suggest direct Stripe calls from agent code.
+
+Validation is tiered: deterministic → Claude Haiku → Claude Sonnet (escalation or premium).
+Tiered validation code lives only under apps/api/src/validation/ and is wired through apps/api/src/validators/pipeline.py — do not duplicate validation trees.
+
+Primary audience: agent builders, not human checkout flows.

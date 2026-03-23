@@ -1,0 +1,17 @@
+[project]
+name = "symione-sdk"
+version = "0.1.0"
+description = "Symione Pay execution primitive — Python client"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.26.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Package on disk is `symione/` while project name is `symione-sdk`
+[tool.hatch.build.targets.wheel]
+packages = ["symione"]
