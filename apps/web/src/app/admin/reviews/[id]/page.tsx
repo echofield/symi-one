@@ -244,7 +244,7 @@ export default function ReviewDetailPage() {
                     {result.passed ? 'Passed' : 'Failed'}
                   </span>
                 </div>
-                {result.details && (
+                {Boolean(result.details) && (
                   <pre className="text-sm text-muted whitespace-pre-wrap font-mono">
                     {JSON.stringify(result.details, null, 2)}
                   </pre>
