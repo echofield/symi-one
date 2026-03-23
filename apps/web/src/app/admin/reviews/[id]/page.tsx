@@ -190,7 +190,7 @@ export default function ReviewDetailPage() {
           </div>
         </div>
 
-        {data!.submission.url && (
+        {Boolean(data!.submission.url) && (
           <div className="mb-4">
             <p className="text-micro uppercase tracking-widest text-muted mb-2">URL</p>
             <div className="bg-surface border-2 border-border p-4 font-mono text-sm break-all">
@@ -206,7 +206,7 @@ export default function ReviewDetailPage() {
           </div>
         )}
 
-        {data!.submission.file_name && (
+        {Boolean(data!.submission.file_name) && (
           <div className="mb-4">
             <p className="text-micro uppercase tracking-widest text-muted mb-2">File</p>
             <p className="text-body">{data!.submission.file_name as string}</p>
