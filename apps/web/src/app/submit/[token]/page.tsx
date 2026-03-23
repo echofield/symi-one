@@ -337,9 +337,9 @@ export default function SubmitPage() {
                           {result.passed ? 'Passed' : 'Failed'}
                         </span>
                       </div>
-                      {result.details_json?.reason && (
+                      {Boolean(result.details_json?.reason) && (
                         <p className="mt-2 text-sm text-muted">
-                          {result.details_json.reason as string}
+                          {String(result.details_json.reason)}
                         </p>
                       )}
                     </div>
