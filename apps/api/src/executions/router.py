@@ -10,6 +10,8 @@ from app.database import AsyncSessionLocal, get_db
 from src.auth.deps import get_api_key
 from src.db.models import ApiKey, Execution, ProofType as DbProofType
 from src.executions.schemas import (
+    AcceptTermsRequest,
+    ArbitrationConfigResponse,
     CreateExecutionRequest,
     ExecutionResponse,
     ExecutionStatus,
@@ -236,3 +238,40 @@ async def cancel_execution(
     if not refreshed:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Lost execution")
     return _to_response(refreshed)
+
+
+@router.post("/{execution_id}/accept-terms", response_model=ArbitrationConfigResponse)
+async def accept_terms(
+    execution_id: str,
+    data: AcceptTermsRequest,
+    db: AsyncSession = Depends(get_db),
+    api_key: ApiKey = Depends(get_api_key),
+):
+    """
+    Accept arbitration terms for an execution.
+
+    The payee must accept terms by providing the SHA-256 hash of the
+    arbitration configuration. This sets the payee_accepted_at timestamp,
+    signifying consent to the dispute resolution terms.
+
+    This extends the existing 4-call primitive (create, fund, submit proof, poll).
+    """
+    svc = ExecutionService(db)
+    execution = await svc.get_by_public_id(execution_id, api_key.id)
+    if not execution:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found")
+
+    try:
+        arb_config = await svc.accept_terms(execution, data.terms_hash, party="payee")
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+    return ArbitrationConfigResponse(
+        terms_hash=arb_config.terms_hash,
+        tie_breaker=arb_config.tie_breaker.value,
+        timeout_resolution=arb_config.timeout_resolution.value,
+        dispute_window_hours=arb_config.dispute_window_hours,
+        terms_url=arb_config.terms_url,
+        payer_accepted_at=arb_config.payer_accepted_at,
+        payee_accepted_at=arb_config.payee_accepted_at,
+    )

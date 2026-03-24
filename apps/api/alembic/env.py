@@ -12,7 +12,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.database import Base
 from src.db.models import (
     Agreement, ValidationConfig, Payment, Submission,
-    ValidationResult, DecisionLog, Review, FileObject
+    ValidationResult, DecisionLog, Review, FileObject,
+    ApiKey, Execution, WebhookEndpoint,
+    ArbitrationConfig, Dispute
 )
 
 config = context.config

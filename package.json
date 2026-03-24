@@ -1,0 +1,22 @@
+{
+  "name": "symione-pay",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Conditional payment execution protocol",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "build:core": "npm run build -w @symione-pay/intent-core",
+    "build:eval": "npm run build -w @symione-pay/intent-eval",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "clean": "npm run clean --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -11,6 +11,7 @@ from src.decisions.router import router as decisions_router
 from src.executions.router import router as executions_router
 from src.webhooks.router import router as outbound_webhooks_router
 from src.internal.router import router as internal_router
+from src.arbitration.router import router as arbitration_router
 
 settings = get_settings()
 
@@ -46,6 +47,7 @@ async def health_check():
 # v1 execution primitive (API key auth)
 app.include_router(executions_router, prefix="/api/v1/executions", tags=["executions-v1"])
 app.include_router(outbound_webhooks_router, prefix="/api/v1/webhooks", tags=["webhooks-outbound"])
+app.include_router(arbitration_router, prefix="/api/v1", tags=["arbitration-disputes"])
 
 # Internal bootstrap (admin token)
 app.include_router(internal_router, prefix="/api/internal", tags=["internal"])

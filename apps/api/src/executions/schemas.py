@@ -113,3 +113,25 @@ class WebhookEndpointResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# === Arbitration / Terms Acceptance ===
+
+
+class AcceptTermsRequest(BaseModel):
+    """Request to accept arbitration terms for an execution."""
+    terms_hash: str
+
+
+class ArbitrationConfigResponse(BaseModel):
+    """Response containing arbitration configuration."""
+    terms_hash: str
+    tie_breaker: str
+    timeout_resolution: str
+    dispute_window_hours: int
+    terms_url: Optional[str] = None
+    payer_accepted_at: Optional[datetime] = None
+    payee_accepted_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

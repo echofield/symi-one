@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Callable
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -15,6 +18,7 @@ from src.db.models import (
     Agreement,
     AgreementStatus,
     ApiKey,
+    ArbitrationConfig,
     Execution,
     ExecutionStatus,
     NextAction,
@@ -22,11 +26,42 @@ from src.db.models import (
     ProofType,
     Submission,
     SubmissionStatus,
+    TieResolution,
+    TimeoutResolution,
 )
 from src.executions.schemas import CreateExecutionRequest
 from src.payments.service import PaymentService
 from src.submissions.schemas import SubmitFileProofRequest, SubmitUrlProofRequest
 from src.submissions.service import SubmissionService
+
+
+def generate_terms_hash(arbitration_config: dict[str, Any]) -> str:
+    """
+    Generate SHA-256 hash of arbitration configuration.
+    Uses deterministic JSON serialization for consistent hashing.
+
+    Args:
+        arbitration_config: Dictionary containing arbitration configuration
+            - tie_breaker: TieResolution value
+            - timeout_resolution: TimeoutResolution value
+            - dispute_window_hours: int
+            - terms_url: optional str
+
+    Returns:
+        Hex-encoded SHA-256 hash of the canonical JSON representation
+    """
+    # Extract only the fields that define the terms (exclude timestamps, IDs)
+    canonical_data = {
+        "tie_breaker": arbitration_config.get("tie_breaker", "escalate"),
+        "timeout_resolution": arbitration_config.get("timeout_resolution", "escalate"),
+        "dispute_window_hours": arbitration_config.get("dispute_window_hours", 72),
+    }
+    if arbitration_config.get("terms_url"):
+        canonical_data["terms_url"] = arbitration_config["terms_url"]
+
+    # Sort keys for deterministic serialization
+    canonical_json = json.dumps(canonical_data, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
 
 
 def generate_execution_public_id() -> str:
@@ -317,3 +352,83 @@ class ExecutionService:
         execution.updated_at = datetime.utcnow()
 
         await self.db.commit()
+
+    async def get_arbitration_config(self, agreement_id: UUID) -> ArbitrationConfig | None:
+        """Get the arbitration config for an agreement."""
+        result = await self.db.execute(
+            select(ArbitrationConfig).where(ArbitrationConfig.agreement_id == agreement_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_arbitration_config(
+        self,
+        agreement_id: UUID,
+        tie_breaker: TieResolution = TieResolution.escalate,
+        timeout_resolution: TimeoutResolution = TimeoutResolution.escalate,
+        dispute_window_hours: int = 72,
+        terms_url: str | None = None,
+    ) -> ArbitrationConfig:
+        """Create arbitration config for an agreement."""
+        config_data = {
+            "tie_breaker": tie_breaker.value,
+            "timeout_resolution": timeout_resolution.value,
+            "dispute_window_hours": dispute_window_hours,
+            "terms_url": terms_url,
+        }
+        terms_hash = generate_terms_hash(config_data)
+
+        arb_config = ArbitrationConfig(
+            agreement_id=agreement_id,
+            terms_hash=terms_hash,
+            tie_breaker=tie_breaker,
+            timeout_resolution=timeout_resolution,
+            dispute_window_hours=dispute_window_hours,
+            terms_url=terms_url,
+        )
+        self.db.add(arb_config)
+        await self.db.commit()
+        await self.db.refresh(arb_config)
+        return arb_config
+
+    async def accept_terms(
+        self,
+        execution: Execution,
+        terms_hash: str,
+        party: str = "payee",
+    ) -> ArbitrationConfig:
+        """
+        Accept the terms of an execution.
+        Sets payee_accepted_at timestamp after verifying the terms hash matches.
+
+        Args:
+            execution: The execution to accept terms for
+            terms_hash: SHA-256 hash of the terms being accepted (must match stored hash)
+            party: Which party is accepting ('payer' or 'payee')
+
+        Returns:
+            Updated ArbitrationConfig
+
+        Raises:
+            ValueError: If terms hash doesn't match or config not found
+        """
+        arb_config = await self.get_arbitration_config(execution.agreement_id)
+        if not arb_config:
+            raise ValueError("Arbitration config not found for this execution")
+
+        if arb_config.terms_hash != terms_hash:
+            raise ValueError(
+                f"Terms hash mismatch. Expected: {arb_config.terms_hash}, got: {terms_hash}"
+            )
+
+        now = datetime.utcnow()
+        if party == "payee":
+            arb_config.payee_accepted_at = now
+        elif party == "payer":
+            arb_config.payer_accepted_at = now
+        else:
+            raise ValueError(f"Invalid party: {party}. Must be 'payer' or 'payee'")
+
+        arb_config.updated_at = now
+        await self.db.commit()
+        await self.db.refresh(arb_config)
+        return arb_config

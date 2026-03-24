@@ -90,6 +90,44 @@ class NextAction(str, PyEnum):
     none = "none"
 
 
+# === Arbitration Enums ===
+
+class TieResolution(str, PyEnum):
+    payer_wins = "payer_wins"
+    payee_wins = "payee_wins"
+    split = "split"
+    escalate = "escalate"
+
+
+class TimeoutResolution(str, PyEnum):
+    release_to_payee = "release_to_payee"
+    return_to_payer = "return_to_payer"
+    escalate = "escalate"
+
+
+class DisputeType(str, PyEnum):
+    proof_invalid = "proof_invalid"
+    proof_incomplete = "proof_incomplete"
+    evaluation_error = "evaluation_error"
+    terms_misinterpretation = "terms_misinterpretation"
+    fraud = "fraud"
+
+
+class DisputeStatus(str, PyEnum):
+    initiated = "initiated"
+    evidence_submitted = "evidence_submitted"
+    under_review = "under_review"
+    resolved = "resolved"
+    escalated = "escalated"
+
+
+class DisputeResolution(str, PyEnum):
+    payer_wins = "payer_wins"
+    payee_wins = "payee_wins"
+    split = "split"
+    voided = "voided"
+
+
 executionstatus_enum = PG_ENUM(
     ExecutionStatus,
     name="executionstatus",
@@ -175,6 +213,8 @@ class Agreement(Base):
     reviews = relationship("Review", back_populates="agreement")
     file_objects = relationship("FileObject", back_populates="agreement")
     execution = relationship("Execution", back_populates="agreement", uselist=False)
+    arbitration_config = relationship("ArbitrationConfig", back_populates="agreement", uselist=False)
+    disputes = relationship("Dispute", back_populates="agreement")
 
 
 class ValidationConfig(Base):
@@ -299,3 +339,74 @@ class FileObject(Base):
     # Relationships
     agreement = relationship("Agreement", back_populates="file_objects")
     submission = relationship("Submission", back_populates="file_objects")
+
+
+# === Arbitration Models ===
+
+
+class ArbitrationConfig(Base):
+    """
+    Arbitration configuration for an agreement.
+    Defines dispute resolution rules and terms acceptance.
+    """
+    __tablename__ = "arbitration_configs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agreement_id = Column(UUID(as_uuid=True), ForeignKey("agreements.id", ondelete="CASCADE"), nullable=False, unique=True)
+
+    # Terms hash (SHA-256 of full terms document)
+    terms_hash = Column(String(64), nullable=False)
+
+    # Resolution rules
+    tie_breaker = Column(Enum(TieResolution), nullable=False, default=TieResolution.escalate)
+    timeout_resolution = Column(Enum(TimeoutResolution), nullable=False, default=TimeoutResolution.escalate)
+
+    # Dispute window (hours after completion to allow disputes)
+    dispute_window_hours = Column(BigInteger, nullable=False, default=72)
+
+    # Optional URL to full terms document
+    terms_url = Column(Text, nullable=True)
+
+    # Consent tracking
+    payer_accepted_at = Column(DateTime(timezone=True), nullable=True)
+    payee_accepted_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    agreement = relationship("Agreement", back_populates="arbitration_config")
+
+
+class Dispute(Base):
+    """
+    Dispute record for an agreement.
+    Tracks dispute initiation, evidence, and resolution.
+    """
+    __tablename__ = "disputes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agreement_id = Column(UUID(as_uuid=True), ForeignKey("agreements.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Dispute initiation
+    initiated_by = Column(String(64), nullable=False)  # 'payer' or 'payee' or party_id
+    initiated_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    dispute_type = Column(Enum(DisputeType), nullable=False)
+    status = Column(Enum(DisputeStatus), nullable=False, default=DisputeStatus.initiated)
+
+    # Claims and evidence
+    claim = Column(Text, nullable=False)
+    evidence = Column(JSON, nullable=False, default=list)  # Array of DisputeEvidence objects
+    counter_claim = Column(Text, nullable=True)
+
+    # Resolution
+    resolution = Column(Enum(DisputeResolution), nullable=True)
+    resolution_reason = Column(Text, nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_by = Column(String(64), nullable=True)  # arbiter or system
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    agreement = relationship("Agreement", back_populates="disputes")

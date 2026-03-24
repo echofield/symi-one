@@ -4,13 +4,19 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from src.db.models import (
-    Submission, Agreement, SubmissionStatus, AgreementStatus, ProofType
+    Submission, Agreement, SubmissionStatus, AgreementStatus, ProofType,
+    ArbitrationConfig, ExecutionStatus,
 )
 from src.submissions.service import SubmissionService
 from src.payments.service import PaymentService
 from src.validators.url_validators import URL_VALIDATORS
 from src.validators.file_validators import FILE_VALIDATORS, FileProof
 from src.validation.orchestrator import run_ai_tiers_if_needed
+
+
+def _has_arbitration_config(agreement: Agreement) -> bool:
+    """Check if agreement has arbitration config enabled for dispute routing."""
+    return agreement.arbitration_config is not None
 
 
 async def run_validation_pipeline(db: AsyncSession, submission_id: UUID) -> None:
@@ -24,11 +30,12 @@ async def run_validation_pipeline(db: AsyncSession, submission_id: UUID) -> None
     4. Updates submission and agreement status
     5. Triggers payment capture if validation passes
     """
-    # Load submission and agreement
+    # Load submission and agreement with arbitration config
     result = await db.execute(
         select(Submission)
         .options(selectinload(Submission.agreement).selectinload(Agreement.validation_config))
         .options(selectinload(Submission.agreement).selectinload(Agreement.payment))
+        .options(selectinload(Submission.agreement).selectinload(Agreement.arbitration_config))
         .where(Submission.id == submission_id)
     )
     submission = result.scalar_one_or_none()
@@ -140,7 +147,7 @@ async def run_validation_pipeline(db: AsyncSession, submission_id: UUID) -> None
         # Reload submission and agreement for final updates
         result = await db.execute(
             select(Submission)
-            .options(selectinload(Submission.agreement))
+            .options(selectinload(Submission.agreement).selectinload(Agreement.arbitration_config))
             .where(Submission.id == submission_id)
         )
         submission = result.scalar_one()
@@ -164,12 +171,24 @@ async def run_validation_pipeline(db: AsyncSession, submission_id: UUID) -> None
             await payment_service.capture_payment(agreement.id)
 
         else:
-            # Validation failed
-            await submission_service.mark_failed(
-                submission=submission,
-                agreement=agreement,
-                reason="; ".join(failure_reasons)
-            )
+            # Validation failed - check if arbitration is enabled
+            if _has_arbitration_config(agreement):
+                # Route to dispute flow instead of immediate failure
+                # Mark as failed but allow dispute within window
+                await submission_service.mark_failed(
+                    submission=submission,
+                    agreement=agreement,
+                    reason=f"Validation failed (dispute eligible): {'; '.join(failure_reasons)}"
+                )
+                # Note: Execution status will be 'failed' but disputes can still be initiated
+                # within the dispute_window_hours defined in ArbitrationConfig
+            else:
+                # No arbitration - use existing manual review fallback
+                await submission_service.mark_failed(
+                    submission=submission,
+                    agreement=agreement,
+                    reason="; ".join(failure_reasons)
+                )
 
     except Exception as e:
         # Pipeline error - request manual review
