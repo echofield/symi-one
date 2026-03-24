@@ -128,6 +128,44 @@ class DisputeResolution(str, PyEnum):
     voided = "voided"
 
 
+# === Challenge Enums ===
+
+
+class ChallengeType(str, PyEnum):
+    simple_bet = "simple_bet"
+    fitness = "fitness"
+    delivery = "delivery"
+    accountability = "accountability"
+    custom = "custom"
+
+
+class ChallengeStatus(str, PyEnum):
+    pending_acceptance = "pending_acceptance"
+    active = "active"
+    awaiting_proof = "awaiting_proof"
+    resolving = "resolving"
+    resolved = "resolved"
+    disputed = "disputed"
+    cancelled = "cancelled"
+    expired = "expired"
+
+
+class ChallengeResolutionType(str, PyEnum):
+    party_a_wins = "party_a_wins"
+    party_b_wins = "party_b_wins"
+    draw = "draw"
+    disputed = "disputed"
+    expired = "expired"
+
+
+class ChallengeProofType(str, PyEnum):
+    attestation = "attestation"
+    file = "file"
+    url = "url"
+    api = "api"
+    check_in = "check_in"
+
+
 executionstatus_enum = PG_ENUM(
     ExecutionStatus,
     name="executionstatus",
@@ -410,3 +448,155 @@ class Dispute(Base):
 
     # Relationships
     agreement = relationship("Agreement", back_populates="disputes")
+
+
+# === Connected Accounts (Stripe Connect) ===
+
+
+class ConnectedAccount(Base):
+    """
+    Stripe Connect Express account for a user.
+    Links platform users to their Stripe accounts for payouts.
+    """
+    __tablename__ = "connected_accounts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), unique=True, nullable=False, index=True)  # Internal user identifier
+    email = Column(String(255), nullable=False)
+    stripe_account_id = Column(String(64), unique=True, nullable=False, index=True)  # acct_xxx
+
+    # Account status (synced from Stripe)
+    charges_enabled = Column(Boolean, nullable=False, default=False)
+    payouts_enabled = Column(Boolean, nullable=False, default=False)
+    details_submitted = Column(Boolean, nullable=False, default=False)
+
+    # Metadata
+    country = Column(String(2), nullable=True)  # ISO country code
+    default_currency = Column(String(3), nullable=True, default="eur")
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    challenges_as_party_a = relationship("Challenge", foreign_keys="Challenge.party_a_account_id", back_populates="party_a_account")
+    challenges_as_party_b = relationship("Challenge", foreign_keys="Challenge.party_b_account_id", back_populates="party_b_account")
+
+
+# === Challenges ===
+
+
+class Challenge(Base):
+    """
+    A two-party challenge with staked funds.
+    Both parties stake money, winner takes all (minus platform fee).
+    """
+    __tablename__ = "challenges"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    public_id = Column(String(16), unique=True, nullable=False, index=True)  # Short shareable ID
+
+    # Challenge definition
+    challenge_type = Column(Enum(ChallengeType), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    conditions_json = Column(JSON, nullable=False, default=dict)  # JSONLogic conditions
+
+    # Parties (both must have connected Stripe accounts)
+    party_a_id = Column(String(128), nullable=False, index=True)  # Creator
+    party_b_id = Column(String(128), nullable=True, index=True)   # Opponent (null until accepted)
+    party_a_email = Column(String(255), nullable=False)
+    party_b_email = Column(String(255), nullable=True)
+    party_a_account_id = Column(UUID(as_uuid=True), ForeignKey("connected_accounts.id", ondelete="SET NULL"), nullable=True)
+    party_b_account_id = Column(UUID(as_uuid=True), ForeignKey("connected_accounts.id", ondelete="SET NULL"), nullable=True)
+
+    # Stakes
+    stake_amount = Column(Numeric(15, 2), nullable=False)  # Amount each party stakes
+    currency = Column(String(3), nullable=False, default="eur")
+    platform_fee_percent = Column(Numeric(5, 2), nullable=False, default=Decimal("10.00"))  # 10% visible platform fee
+
+    # Stripe PaymentIntents
+    party_a_payment_intent_id = Column(String(64), nullable=True, index=True)
+    party_b_payment_intent_id = Column(String(64), nullable=True, index=True)
+    party_a_funded = Column(Boolean, nullable=False, default=False)
+    party_b_funded = Column(Boolean, nullable=False, default=False)
+
+    # Status & resolution
+    status = Column(Enum(ChallengeStatus), nullable=False, default=ChallengeStatus.pending_acceptance)
+    winner_id = Column(String(128), nullable=True)
+    resolution_type = Column(Enum(ChallengeResolutionType), nullable=True)
+    resolution_reason = Column(Text, nullable=True)
+
+    # Arbitration config
+    dispute_window_hours = Column(BigInteger, nullable=False, default=24)
+    timeout_resolution = Column(String(32), nullable=False, default="split")  # split | return_to_parties
+
+    # Timing
+    proof_deadline = Column(DateTime(timezone=True), nullable=True)
+    acceptance_deadline = Column(DateTime(timezone=True), nullable=True)  # 48h to accept
+
+    # Invite
+    invite_token = Column(String(64), unique=True, nullable=False, index=True)  # For sharing
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    accepted_at = Column(DateTime(timezone=True), nullable=True)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    party_a_account = relationship("ConnectedAccount", foreign_keys=[party_a_account_id], back_populates="challenges_as_party_a")
+    party_b_account = relationship("ConnectedAccount", foreign_keys=[party_b_account_id], back_populates="challenges_as_party_b")
+    proofs = relationship("ChallengeProof", back_populates="challenge", cascade="all, delete-orphan")
+    events = relationship("ChallengeEvent", back_populates="challenge", cascade="all, delete-orphan")
+
+
+class ChallengeProof(Base):
+    """
+    Proof submitted by a party for a challenge.
+    Immutable once submitted - hash ensures integrity.
+    """
+    __tablename__ = "challenge_proofs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    challenge_id = Column(UUID(as_uuid=True), ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False, index=True)
+    submitted_by = Column(String(128), nullable=False)  # party_a_id or party_b_id
+
+    # Proof content
+    proof_type = Column(Enum(ChallengeProofType), nullable=False)
+    proof_data = Column(JSON, nullable=False)  # Type-specific data
+    proof_hash = Column(String(64), nullable=False)  # SHA-256 of proof_data JSON
+
+    # For attestation proofs (simple bet)
+    attested_outcome = Column(String(32), nullable=True)  # party_a | party_b | draw
+
+    # For file proofs
+    file_key = Column(String(512), nullable=True)
+    file_name = Column(String(255), nullable=True)
+
+    # For URL proofs
+    url = Column(Text, nullable=True)
+
+    submitted_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    challenge = relationship("Challenge", back_populates="proofs")
+
+
+class ChallengeEvent(Base):
+    """
+    Audit trail for challenge lifecycle events.
+    Used to build timeline in UI.
+    """
+    __tablename__ = "challenge_events"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    challenge_id = Column(UUID(as_uuid=True), ForeignKey("challenges.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    event_type = Column(String(64), nullable=False)  # created, accepted, proof_submitted, resolved, disputed, etc.
+    actor_id = Column(String(128), nullable=True)  # Who triggered the event
+    details = Column(JSON, nullable=False, default=dict)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    challenge = relationship("Challenge", back_populates="events")

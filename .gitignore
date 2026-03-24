@@ -50,6 +50,11 @@ npm-debug.log*
 htmlcov/
 coverage.xml
 
+# Vercel
+.vercel/
+
 # Misc
 *.pem
 tmpclaude-*
+nul
+ky.txt

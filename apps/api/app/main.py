@@ -12,6 +12,9 @@ from src.executions.router import router as executions_router
 from src.webhooks.router import router as outbound_webhooks_router
 from src.internal.router import router as internal_router
 from src.arbitration.router import router as arbitration_router
+from src.connect.router import router as connect_router
+from src.challenges.router import router as challenges_router
+from src.templates.router import router as templates_router, webhook_router as templates_webhook_router
 
 settings = get_settings()
 
@@ -65,3 +68,11 @@ app.include_router(public_router, prefix="/api/public", tags=["public"])
 
 # Stripe webhook (inbound)
 app.include_router(webhook_router, prefix="/api/stripe", tags=["stripe-webhook-inbound"])
+
+# Challenges & Connect (v1)
+app.include_router(connect_router, prefix="/api/v1/connect", tags=["connect"])
+app.include_router(challenges_router, prefix="/api/v1/challenges", tags=["challenges"])
+
+# Templates marketplace (v1)
+app.include_router(templates_router, prefix="/api/v1/templates", tags=["templates"])
+app.include_router(templates_webhook_router, prefix="/api/v1/templates", tags=["templates-webhook"])

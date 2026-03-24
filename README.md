@@ -1,80 +1,119 @@
-# SYMIONE — release payments when conditions are true
+# SYMIONE
 
-Conditional payment execution primitive. One funding flow, one proof submission, tiered validation, conditional capture.
+Conditional payment protocol. Release payments when conditions are true.
 
-## The primitive
+## Products
 
-| Action | Endpoint |
-|--------|----------|
-| Create execution | `POST /api/v1/executions` |
-| Fund execution | `POST /api/v1/executions/{id}/fund` |
-| Submit proof | `POST /api/v1/executions/{id}/proof` |
-| Poll status | `GET /api/v1/executions/{id}` |
+### Reliable (apps/web/)
+Stake-based challenges. Put your money where your mouth is.
+- **Solo** — Challenge yourself with real stakes
+- **Duel** — 1v1 challenges with a friend
+- **Cell** — Group challenges
 
-## State machine
+### Template Marketplace (/templates)
+Fork and deploy conditional payment apps in 90 seconds.
+- **Reliable** — Free, peer challenges
+- **Escrow** — Free, freelancer payments
+- **Accord** — Free, bilateral agreements
+- **Creator Pro** — €149, challenge business for creators
+
+## Structure
 
 ```
-created → awaiting_funding → awaiting_proof → validating → paid
-                                                    ↘ failed
-                                                    ↘ manual_review
-                              cancelled
+apps/
+├── api/                    # Backend (FastAPI, Cloud Run)
+│   ├── src/challenges/     # Challenge creation, proof, resolution
+│   ├── src/connect/        # Stripe Connect Express accounts
+│   ├── src/templates/      # Template marketplace
+│   ├── src/executions/     # Core execution primitive
+│   └── src/arbitration/    # Dispute resolution
+│
+└── web/                    # Frontend (Next.js, Vercel)
+    └── src/app/
+        ├── challenge/      # Reliable challenge UI
+        ├── templates/      # Template marketplace
+        └── connect/        # Stripe onboarding
+
+packages/
+├── intent-core/            # Intent schema, signing, canonicalization
+├── intent-eval/            # JSONLogic evaluator, validators
+├── sdk-js/                 # JavaScript SDK
+└── sdk-python/             # Python SDK
 ```
 
-Terminal: `paid`, `failed`, `manual_review`, `cancelled`
+## Protocol Economics
 
-## Integration
+| Fee | Rate | Visibility |
+|-----|------|------------|
+| Platform fee | 10% | Visible to users |
+| Protocol fee | 5% | Invisible (infrastructure) |
+| **Total** | **15%** | |
 
-```javascript
-import { Symione } from '@symione/sdk'
-const symione = new Symione({ apiKey: process.env.SYMIONE_API_KEY })
-const execution = await symione.createExecution({
-  amount: 5000,
-  currency: 'eur',
-  proof_type: 'url',
-  validation_config: { require_status_200: true }
-})
+The 5% protocol fee is non-negotiable and baked into every transfer.
+The 10% platform fee is configurable (for creator rev-share in future).
+
+## Deploy
+
+### Backend (Cloud Run)
+```bash
+cd apps/api
+gcloud run deploy symione-api --source .
 ```
 
-## Validation tiers
+### Frontend (Vercel)
+1. Import repo from github.com/echofield/symii
+2. Set "Root Directory" to: `apps/web`
+3. Framework preset: Next.js
+4. Add environment variables:
+   - `NEXT_PUBLIC_API_URL`
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 
-1. **Deterministic** — URL reachability, domain allowlist, file checks
-2. **Claude Haiku** — Structured JSON verdict when AI validation requested
-3. **Claude Sonnet** — Escalation when Haiku confidence below threshold, or `validation_tier: premium`
+## Environment
 
-Requires `ANTHROPIC_API_KEY`. AI outputs are probabilistic; deterministic gates and manual review cover edge cases.
+See `.env.example` for all required variables.
 
-## Links
-
-- [Protocol specification](spec/v0.1.md)
-- [API documentation](apps/api/docs/AGENT_API.md)
-- [JavaScript SDK](packages/sdk-js)
-- [Python SDK](packages/sdk-python)
-
-## Quick start
+## Quick Start
 
 ```bash
-# 1. Bootstrap
+# Backend
 cd apps/api
 python -m venv venv && venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env  # configure DATABASE_URL, STRIPE_*, ANTHROPIC_API_KEY
+cp .env.example .env  # configure
 alembic upgrade head
 uvicorn app.main:app --reload
 
-# 2. Create API key
-# Set ADMIN_BOOTSTRAP_TOKEN in .env, then:
-curl -X POST http://localhost:8000/api/internal/api-keys \
-  -H "X-Admin-Token: $ADMIN_BOOTSTRAP_TOKEN"
-
-# 3. Create execution
-curl -X POST http://localhost:8000/api/v1/executions \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Idempotency-Key: $(uuidgen)" \
-  -H "Content-Type: application/json" \
-  -d '{"title":"Test","description":"Test execution","amount":"10.00","currency":"usd","proof_type":"url"}'
-
-# 4. Fund → Submit proof → Poll status
+# Frontend
+cd apps/web
+npm install
+cp .env.example .env.local  # configure
+npm run dev
 ```
+
+## API
+
+### Challenges
+| Action | Endpoint |
+|--------|----------|
+| Create | `POST /api/v1/challenges` |
+| Accept | `POST /api/v1/challenges/{id}/accept` |
+| Fund | `POST /api/v1/challenges/{id}/fund` |
+| Proof | `POST /api/v1/challenges/{id}/proof` |
+| Resolve | `POST /api/v1/challenges/{id}/resolve` |
+
+### Connect
+| Action | Endpoint |
+|--------|----------|
+| Create account | `POST /api/v1/connect` |
+| Onboarding link | `POST /api/v1/connect/onboarding-link` |
+| Check status | `GET /api/v1/connect/accounts/{id}/status` |
+
+### Templates
+| Action | Endpoint |
+|--------|----------|
+| List | `GET /api/v1/templates` |
+| Detail | `GET /api/v1/templates/{id}` |
+| Purchase | `POST /api/v1/templates/purchase` |
 
 ## License
 
