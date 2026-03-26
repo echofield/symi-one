@@ -600,3 +600,250 @@ class ChallengeEvent(Base):
 
     # Relationships
     challenge = relationship("Challenge", back_populates="events")
+
+
+# === RELIABLE V0: 7-Day Execution Challenge Models ===
+
+
+class ExecutionChallengeStatus(str, PyEnum):
+    """Status of a 7-day execution challenge."""
+    open = "open"              # Accepting participants
+    active = "active"          # Challenge in progress (days 1-7)
+    resolving = "resolving"    # Day 8, calculating results
+    resolved = "resolved"      # Complete, payouts done
+    cancelled = "cancelled"    # Cancelled before start
+
+
+class ParticipationStatus(str, PyEnum):
+    """Status of a user's participation in a challenge."""
+    pending = "pending"        # Payment authorized, not yet captured
+    active = "active"          # In the challenge, submitting proofs
+    completed = "completed"    # Submitted all 7 days
+    failed = "failed"          # Missed a day, eliminated
+    withdrawn = "withdrawn"    # Withdrew before start
+
+
+class DailyProofStatus(str, PyEnum):
+    """Status of a daily proof submission."""
+    submitted = "submitted"
+    validated = "validated"
+    rejected = "rejected"
+
+
+class ExecutionChallenge(Base):
+    """
+    A pool-based 7-day execution challenge.
+    Multiple participants stake money, complete daily proofs.
+    Completers share the pool of those who failed.
+    """
+    __tablename__ = "execution_challenges"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    public_id = Column(String(16), unique=True, nullable=False, index=True)
+
+    # Challenge definition
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    proof_description = Column(Text, nullable=False)  # What constitutes valid daily proof
+
+    # Proof requirements
+    proof_type = Column(String(32), nullable=False, default="url")  # url | image
+    allowed_domains = Column(JSON, nullable=True)  # For URL proofs: ["youtube.com", "github.com"]
+
+    # Duration
+    duration_days = Column(BigInteger, nullable=False, default=7)
+
+    # Timing
+    join_deadline = Column(DateTime(timezone=True), nullable=False)  # Must join before this
+    start_date = Column(DateTime(timezone=True), nullable=False)     # Day 1 starts at 00:00 UTC
+    end_date = Column(DateTime(timezone=True), nullable=False)       # Day 7 ends at 23:59 UTC
+
+    # Stakes
+    min_stake_cents = Column(BigInteger, nullable=False, default=2000)   # €20
+    max_stake_cents = Column(BigInteger, nullable=False, default=10000)  # €100
+    stake_options_cents = Column(JSON, nullable=False, default=[2000, 5000, 10000])  # €20, €50, €100
+    currency = Column(String(3), nullable=False, default="eur")
+
+    # Pool
+    pool_total_cents = Column(BigInteger, nullable=False, default=0)
+    platform_fee_percent = Column(Numeric(5, 2), nullable=False, default=Decimal("10.00"))
+
+    # Status
+    status = Column(Enum(ExecutionChallengeStatus), nullable=False, default=ExecutionChallengeStatus.open)
+
+    # Stats (updated as challenge progresses)
+    participant_count = Column(BigInteger, nullable=False, default=0)
+    active_count = Column(BigInteger, nullable=False, default=0)
+    completed_count = Column(BigInteger, nullable=False, default=0)
+    failed_count = Column(BigInteger, nullable=False, default=0)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    participations = relationship("ChallengeParticipation", back_populates="challenge", cascade="all, delete-orphan")
+
+
+class ChallengeParticipation(Base):
+    """
+    A user's participation in an execution challenge.
+    Tracks their stake, payment, and final outcome.
+    """
+    __tablename__ = "challenge_participations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    challenge_id = Column(UUID(as_uuid=True), ForeignKey("execution_challenges.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # User
+    user_id = Column(String(128), nullable=False, index=True)
+    user_email = Column(String(255), nullable=False)
+    connected_account_id = Column(UUID(as_uuid=True), ForeignKey("connected_accounts.id", ondelete="SET NULL"), nullable=True)
+
+    # Stake
+    stake_amount_cents = Column(BigInteger, nullable=False)
+    currency = Column(String(3), nullable=False, default="eur")
+
+    # Payment
+    payment_intent_id = Column(String(64), nullable=True, index=True)
+    payment_status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.pending)
+
+    # Status
+    status = Column(Enum(ParticipationStatus), nullable=False, default=ParticipationStatus.pending)
+
+    # Progress
+    days_completed = Column(BigInteger, nullable=False, default=0)
+    current_streak = Column(BigInteger, nullable=False, default=0)
+    failed_on_day = Column(BigInteger, nullable=True)  # Which day they missed (if failed)
+
+    # Outcome
+    payout_amount_cents = Column(BigInteger, nullable=True)  # Amount won (if completed)
+    payout_transfer_id = Column(String(64), nullable=True)   # Stripe transfer ID
+
+    joined_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    resolved_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    challenge = relationship("ExecutionChallenge", back_populates="participations")
+    daily_proofs = relationship("DailyProof", back_populates="participation", cascade="all, delete-orphan")
+    connected_account = relationship("ConnectedAccount")
+
+
+class DailyProof(Base):
+    """
+    A single day's proof submission for a participant.
+    Each participant must submit 7 proofs (one per day).
+    """
+    __tablename__ = "daily_proofs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    participation_id = Column(UUID(as_uuid=True), ForeignKey("challenge_participations.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    # Day tracking
+    day_number = Column(BigInteger, nullable=False)  # 1-7
+
+    # Proof content
+    proof_type = Column(String(32), nullable=False)  # url | image
+    proof_url = Column(Text, nullable=True)
+    proof_image_key = Column(String(512), nullable=True)  # S3/GCS key for uploaded image
+    proof_hash = Column(String(64), nullable=False)  # SHA-256 for integrity
+
+    # Validation
+    status = Column(Enum(DailyProofStatus), nullable=False, default=DailyProofStatus.submitted)
+    validation_details = Column(JSON, nullable=True)  # HTTP status, content hash, etc.
+
+    # Timing
+    deadline = Column(DateTime(timezone=True), nullable=False)  # 23:59 UTC on day N
+    submitted_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    validated_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    participation = relationship("ChallengeParticipation", back_populates="daily_proofs")
+
+    # Constraint: one proof per day per participation
+    __table_args__ = (
+        # UniqueConstraint handled by index
+    )
+
+
+class KernelRecord(Base):
+    """
+    Immutable record of a user's challenge completion.
+    This is the "proof-of-work" artifact that builds reputation.
+    Stored in Creator Brand Kernel for long-term reputation.
+    """
+    __tablename__ = "kernel_records"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # References
+    user_id = Column(String(128), nullable=False, index=True)
+    challenge_id = Column(UUID(as_uuid=True), ForeignKey("execution_challenges.id", ondelete="SET NULL"), nullable=True)
+    participation_id = Column(UUID(as_uuid=True), ForeignKey("challenge_participations.id", ondelete="SET NULL"), nullable=True)
+
+    # Challenge snapshot (denormalized for immutability)
+    challenge_title = Column(String(255), nullable=False)
+    challenge_type = Column(String(64), nullable=False, default="7_day_execution")
+
+    # Outcome
+    outcome = Column(String(32), nullable=False)  # completed | failed
+    days_completed = Column(BigInteger, nullable=False)
+    days_required = Column(BigInteger, nullable=False)
+    completion_rate = Column(Numeric(5, 4), nullable=False)  # 1.0000 = 100%
+
+    # Financial
+    stake_amount_cents = Column(BigInteger, nullable=False)
+    payout_amount_cents = Column(BigInteger, nullable=False, default=0)
+    net_result_cents = Column(BigInteger, nullable=False)  # payout - stake (can be negative)
+    currency = Column(String(3), nullable=False, default="eur")
+
+    # Proof integrity
+    proof_hashes = Column(JSON, nullable=False)  # Array of daily proof hashes
+    record_hash = Column(String(64), nullable=False)  # SHA-256 of entire record
+
+    # Immutability
+    sealed_at = Column(DateTime(timezone=True), nullable=False)
+    signature = Column(String(128), nullable=True)  # Optional cryptographic signature
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+
+    # No updates allowed - append-only
+
+
+class UserKernelProfile(Base):
+    """
+    Aggregated reputation profile for a user.
+    Computed from KernelRecords.
+    This is the user's economic reputation.
+    """
+    __tablename__ = "user_kernel_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), unique=True, nullable=False, index=True)
+
+    # Stats
+    total_challenges = Column(BigInteger, nullable=False, default=0)
+    completed_challenges = Column(BigInteger, nullable=False, default=0)
+    failed_challenges = Column(BigInteger, nullable=False, default=0)
+    completion_rate = Column(Numeric(5, 4), nullable=False, default=Decimal("0.0000"))
+
+    # Financial
+    total_staked_cents = Column(BigInteger, nullable=False, default=0)
+    total_earned_cents = Column(BigInteger, nullable=False, default=0)
+    total_lost_cents = Column(BigInteger, nullable=False, default=0)
+    net_position_cents = Column(BigInteger, nullable=False, default=0)
+    currency = Column(String(3), nullable=False, default="eur")
+
+    # Streaks
+    current_streak = Column(BigInteger, nullable=False, default=0)
+    longest_streak = Column(BigInteger, nullable=False, default=0)
+
+    # Activity
+    last_challenge_at = Column(DateTime(timezone=True), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

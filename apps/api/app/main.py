@@ -15,6 +15,7 @@ from src.arbitration.router import router as arbitration_router
 from src.connect.router import router as connect_router
 from src.challenges.router import router as challenges_router
 from src.templates.router import router as templates_router, webhook_router as templates_webhook_router
+from src.reliable.router import router as reliable_router
 
 settings = get_settings()
 
@@ -76,3 +77,6 @@ app.include_router(challenges_router, prefix="/api/v1/challenges", tags=["challe
 # Templates marketplace (v1)
 app.include_router(templates_router, prefix="/api/v1/templates", tags=["templates"])
 app.include_router(templates_webhook_router, prefix="/api/v1/templates", tags=["templates-webhook"])
+
+# RELIABLE V0 - 7-day execution challenges
+app.include_router(reliable_router, prefix="/api/v1/reliable", tags=["reliable"])

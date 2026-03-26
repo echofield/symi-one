@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from src.auth.dependencies import get_current_api_key
+from src.auth.deps import get_api_key
 from src.db.models import ApiKey, DisputeStatus
 from src.arbitration.service import ArbitrationService
 from src.arbitration.schemas import (
@@ -40,7 +40,7 @@ async def initiate_dispute(
     execution_id: UUID,
     data: DisputeCreate,
     db: AsyncSession = Depends(get_db),
-    api_key: ApiKey = Depends(get_current_api_key),
+    api_key: ApiKey = Depends(get_api_key),
 ) -> DisputeResponse:
     """
     Initiate a new dispute for an execution.
@@ -73,7 +73,7 @@ async def initiate_dispute(
 async def list_execution_disputes(
     execution_id: UUID,
     db: AsyncSession = Depends(get_db),
-    api_key: ApiKey = Depends(get_current_api_key),
+    api_key: ApiKey = Depends(get_api_key),
 ) -> list[DisputeResponse]:
     """List all disputes for a specific execution."""
     service = ArbitrationService(db)
@@ -92,7 +92,7 @@ async def list_execution_disputes(
 async def get_dispute(
     dispute_id: UUID,
     db: AsyncSession = Depends(get_db),
-    api_key: ApiKey = Depends(get_current_api_key),
+    api_key: ApiKey = Depends(get_api_key),
 ) -> DisputeResponse:
     """Get dispute by ID."""
     service = ArbitrationService(db)
@@ -118,7 +118,7 @@ async def submit_counter_claim(
     data: DisputeCounter,
     submitted_by: str,
     db: AsyncSession = Depends(get_db),
-    api_key: ApiKey = Depends(get_current_api_key),
+    api_key: ApiKey = Depends(get_api_key),
 ) -> DisputeResponse:
     """
     Submit a counter-claim to a dispute.
@@ -145,7 +145,7 @@ async def resolve_dispute(
     dispute_id: UUID,
     data: DisputeResolve,
     db: AsyncSession = Depends(get_db),
-    api_key: ApiKey = Depends(get_current_api_key),
+    api_key: ApiKey = Depends(get_api_key),
 ) -> DisputeResponse:
     """
     Resolve a dispute.
@@ -179,7 +179,7 @@ async def resolve_dispute(
 async def attempt_auto_resolve(
     dispute_id: UUID,
     db: AsyncSession = Depends(get_db),
-    api_key: ApiKey = Depends(get_current_api_key),
+    api_key: ApiKey = Depends(get_api_key),
 ) -> Optional[DisputeResponse]:
     """
     Attempt to automatically resolve a dispute.
@@ -215,7 +215,7 @@ async def list_disputes(
     limit: int = 50,
     status: Optional[DisputeStatus] = None,
     db: AsyncSession = Depends(get_db),
-    api_key: ApiKey = Depends(get_current_api_key),
+    api_key: ApiKey = Depends(get_api_key),
 ) -> DisputeListResponse:
     """List all disputes with pagination."""
     service = ArbitrationService(db)
@@ -238,7 +238,7 @@ async def list_disputes(
 )
 async def check_dispute_timeouts(
     db: AsyncSession = Depends(get_db),
-    api_key: ApiKey = Depends(get_current_api_key),
+    api_key: ApiKey = Depends(get_api_key),
 ) -> list[DisputeResponse]:
     """
     Process timed-out disputes.
