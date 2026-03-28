@@ -53,12 +53,9 @@ export default function MusicPage() {
         title: displayService,
         description: `${displayService} - Payment via SYMIONE`,
         amount: Number(price),
-        currency: 'EUR',
+        currency: 'eur',
         proof_type: 'file',
-        validation_config: {
-          require_file: true,
-          auto_approve: false,
-        },
+        validation_config: {},
         ...(email && { payee_email: email }),
       })
 
