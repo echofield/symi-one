@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+from pydantic import BaseModel
 
 from app.database import get_db
 from src.agreements.schemas import (
@@ -11,6 +12,16 @@ from src.agreements.schemas import (
     PublicAgreementResponse,
 )
 from src.agreements.service import AgreementService
+from src.submissions.service import SubmissionService
+from src.submissions.schemas import SubmitUrlProofRequest, SubmitFileProofRequest, SubmissionWithResultsResponse, SubmissionResponse, ValidationResultResponse
+from src.validators.pipeline import run_validation_pipeline
+from src.db.models import AgreementStatus, ProofType
+
+
+class PresignRequest(BaseModel):
+    file_name: str
+    mime_type: str
+    size_bytes: int
 
 router = APIRouter()
 
@@ -126,3 +137,82 @@ async def get_submit_agreement(
         )
 
     return PublicAgreementResponse(**service.get_public_info(agreement))
+
+@public_router.post("/submit/{token}/url")
+async def public_submit_url_proof(
+    token: str,
+    data: SubmitUrlProofRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Submit URL proof using submit token."""
+    agreement_service = AgreementService(db)
+    agreement = await agreement_service.get_agreement_by_submit_token(token)
+    
+    if not agreement:
+        raise HTTPException(status_code=404, detail="Agreement not found")
+    
+    if agreement.status not in [AgreementStatus.funded, AgreementStatus.failed]:
+        raise HTTPException(status_code=400, detail=f"Cannot submit proof: {agreement.status.value}")
+    
+    if agreement.proof_type != ProofType.url:
+        raise HTTPException(status_code=400, detail="This agreement requires file proof")
+    
+    submission_service = SubmissionService(db)
+    submission = await submission_service.create_url_submission(agreement, data)
+    await run_validation_pipeline(db, submission.id)
+    submission = await submission_service.get_submission(submission.id)
+    
+    return {"submission": SubmissionResponse.model_validate(submission).model_dump()}
+
+
+@public_router.post("/submit/{token}/presign")
+async def public_presign_upload(
+    token: str,
+    data: PresignRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Get presigned URL for file upload."""
+    from src.storage.service import StorageService
+    
+    agreement_service = AgreementService(db)
+    agreement = await agreement_service.get_agreement_by_submit_token(token)
+    
+    if not agreement:
+        raise HTTPException(status_code=404, detail="Agreement not found")
+    
+    storage_service = StorageService()
+    presigned = await storage_service.generate_presigned_upload(
+        agreement_id=agreement.id,
+        file_name=data.file_name,
+        mime_type=data.mime_type,
+        size_bytes=data.size_bytes,
+    )
+    
+    return presigned
+
+
+@public_router.post("/submit/{token}/file")
+async def public_submit_file_proof(
+    token: str,
+    data: SubmitFileProofRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Submit file proof using submit token."""
+    agreement_service = AgreementService(db)
+    agreement = await agreement_service.get_agreement_by_submit_token(token)
+    
+    if not agreement:
+        raise HTTPException(status_code=404, detail="Agreement not found")
+    
+    if agreement.status not in [AgreementStatus.funded, AgreementStatus.failed]:
+        raise HTTPException(status_code=400, detail=f"Cannot submit proof: {agreement.status.value}")
+    
+    if agreement.proof_type != ProofType.file:
+        raise HTTPException(status_code=400, detail="This agreement requires URL proof")
+    
+    submission_service = SubmissionService(db)
+    submission = await submission_service.create_file_submission(agreement, data)
+    await run_validation_pipeline(db, submission.id)
+    submission = await submission_service.get_submission(submission.id)
+    
+    return {"submission": SubmissionResponse.model_validate(submission).model_dump()}
