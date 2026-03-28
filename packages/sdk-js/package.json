@@ -1,5 +1,5 @@
 {
-  "name": "@symione/sdk",
+  "name": "symione-sdk",
   "version": "0.1.0",
   "description": "Symione Pay execution primitive — JS client",
   "main": "./dist/index.js",

@@ -85,7 +85,7 @@ class PaymentService:
             if payee_account and payee_account.charges_enabled:
                 destination_account_id = payee_account.stripe_account_id
 
-        # Build PaymentIntent params - Marketplace: funds to platform, fee on Transfer
+        # Build PaymentIntent params
         intent_params = {
             "amount": amount_cents,
             "currency": agreement.currency,
@@ -94,12 +94,21 @@ class PaymentService:
                 "agreement_public_id": agreement.public_id,
                 "payment_id": str(payment.id),
                 "protocol_fee_percent": str(PROTOCOL_FEE_PERCENT),
-                "protocol_fee_cents": str(application_fee_cents),
-                "payee_email": agreement.payee_email or "",
             },
-            "capture_method": "manual",
-            "automatic_payment_methods": {"enabled": True},
+            "capture_method": "manual",  # Authorize only, capture later
+            "automatic_payment_methods": {
+                "enabled": True,
+            },
         }
+
+        # If we have a destination account, use destination charges with application_fee
+        if destination_account_id:
+            intent_params["application_fee_amount"] = application_fee_cents
+            intent_params["transfer_data"] = {
+                "destination": destination_account_id,
+            }
+            intent_params["metadata"]["destination_account"] = destination_account_id
+            intent_params["metadata"]["application_fee_cents"] = str(application_fee_cents)
 
         intent = stripe.PaymentIntent.create(**intent_params)
 
@@ -151,7 +160,7 @@ class PaymentService:
         return payment
 
     async def capture_payment(self, agreement_id: UUID) -> Payment | None:
-        """Capture payment and transfer to payee minus 5% protocol fee (Marketplace)."""
+        """Capture authorized payment (release funds to payee)."""
         result = await self.db.execute(
             select(Payment).where(Payment.agreement_id == agreement_id)
         )
@@ -159,68 +168,42 @@ class PaymentService:
 
         if not payment or payment.status != PaymentStatus.authorized:
             return None
+
         if not payment.stripe_payment_intent_id:
             return None
 
-        agreement_result = await self.db.execute(
-            select(Agreement).where(Agreement.id == agreement_id)
-        )
-        agreement = agreement_result.scalar_one_or_none()
-
         try:
-            # Step 1: Capture to platform
-            captured = stripe.PaymentIntent.capture(payment.stripe_payment_intent_id)
-            amount_cents = captured.amount
-            currency = captured.currency
-
-            # Step 2: Calculate 5% protocol fee
-            protocol_fee_cents = int(amount_cents * PROTOCOL_FEE_PERCENT / 100)
-            net_amount_cents = amount_cents - protocol_fee_cents
-            transfer_id = None
-
-            # Step 3: Transfer to payee if connected account exists
-            if agreement and agreement.payee_email:
-                payee_account = await self._get_payee_connected_account(agreement.payee_email)
-                if payee_account and payee_account.charges_enabled:
-                    transfer = stripe.Transfer.create(
-                        amount=net_amount_cents,
-                        currency=currency,
-                        destination=payee_account.stripe_account_id,
-                        transfer_group=f"agreement_{agreement.id}",
-                        metadata={
-                            "agreement_id": str(agreement.id),
-                            "gross_amount_cents": str(amount_cents),
-                            "protocol_fee_cents": str(protocol_fee_cents),
-                            "protocol_fee_percent": str(PROTOCOL_FEE_PERCENT),
-                        },
-                    )
-                    transfer_id = transfer.id
+            # Capture the payment in Stripe
+            stripe.PaymentIntent.capture(payment.stripe_payment_intent_id)
 
             payment.status = PaymentStatus.captured
             payment.captured_at = datetime.utcnow()
             payment.updated_at = datetime.utcnow()
 
+            # Update agreement status
+            agreement_result = await self.db.execute(
+                select(Agreement).where(Agreement.id == agreement_id)
+            )
+            agreement = agreement_result.scalar_one_or_none()
+
             if agreement:
                 agreement.status = AgreementStatus.paid
                 agreement.updated_at = datetime.utcnow()
+
+                # Create decision log
                 decision = DecisionLog(
                     agreement_id=agreement.id,
                     payment_id=payment.id,
                     decision_type=DecisionType.capture_payment,
                     outcome=DecisionOutcome.approved,
-                    reason="Payment captured with 5% protocol fee retained",
-                    metadata_json={
-                        "payment_intent_id": payment.stripe_payment_intent_id,
-                        "transfer_id": transfer_id,
-                        "gross_amount_cents": amount_cents,
-                        "protocol_fee_cents": protocol_fee_cents,
-                        "net_amount_cents": net_amount_cents,
-                    },
+                    reason="Payment captured after successful proof validation",
+                    metadata_json={"payment_intent_id": payment.stripe_payment_intent_id},
                 )
                 self.db.add(decision)
 
             await self.db.commit()
             await self.db.refresh(payment)
+
             return payment
 
         except stripe.error.StripeError as e:

@@ -84,7 +84,7 @@ export async function getSubmissionInfo(token: string) {
         details_json: Record<string, unknown>
       }>
     }
-  }>(`/api/public/submissions/${token}`)
+  }>(`/api/public/submit/${token}`)
 }
 
 export async function submitUrlProof(token: string, url: string) {
@@ -95,7 +95,7 @@ export async function submitUrlProof(token: string, url: string) {
       url: string
       submitted_at: string
     }
-  }>(`/api/public/submissions/${token}/url`, {
+  }>(`/api/public/submit/${token}/url`, {
     method: 'POST',
     body: JSON.stringify({ url }),
   })
@@ -111,7 +111,7 @@ export async function getPresignedUploadUrl(
     upload_url: string
     object_key: string
     expires_at: string
-  }>(`/api/public/submissions/${token}/presign`, {
+  }>(`/api/public/submit/${token}/presign`, {
     method: 'POST',
     body: JSON.stringify({
       file_name: fileName,
@@ -136,7 +136,7 @@ export async function submitFileProof(
       file_name: string
       submitted_at: string
     }
-  }>(`/api/public/submissions/${token}/file`, {
+  }>(`/api/public/submit/${token}/file`, {
     method: 'POST',
     body: JSON.stringify({
       file_key: fileKey,
