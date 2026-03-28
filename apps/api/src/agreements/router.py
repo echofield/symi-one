@@ -216,3 +216,32 @@ async def public_submit_file_proof(
     submission = await submission_service.get_submission(submission.id)
     
     return {"submission": SubmissionResponse.model_validate(submission).model_dump()}
+
+
+@public_router.post("/agreements/{token}/fund")
+async def public_fund_agreement(
+    token: str,
+    data: dict,
+    db: AsyncSession = Depends(get_db)
+):
+    """Fund an agreement using the funding token."""
+    from src.payments.service import PaymentService
+    
+    agreement_service = AgreementService(db)
+    agreement = await agreement_service.get_agreement_by_funding_token(token)
+    
+    if not agreement:
+        raise HTTPException(status_code=404, detail="Agreement not found")
+    
+    if agreement.status not in [AgreementStatus.awaiting_funding, AgreementStatus.draft]:
+        raise HTTPException(status_code=400, detail=f"Cannot fund: {agreement.status.value}")
+    
+    return_url = data.get("return_url", "https://symione.com")
+    
+    payment_service = PaymentService(db)
+    payment, client_secret = await payment_service.create_payment_intent(agreement, return_url)
+    
+    return {
+        "client_secret": client_secret,
+        "payment_intent_id": payment.stripe_payment_intent_id,
+    }
