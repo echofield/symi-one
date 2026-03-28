@@ -1,244 +1,142 @@
 'use client'
 
-import Link from 'next/link'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 
-const SERVICE_TEMPLATES = [
-  { id: 'mix-master', title: 'Mix & Master', description: 'Full mix and master for a track', defaultPrice: 200 },
-  { id: 'beat', title: 'Beat Production', description: 'Custom beat or instrumental', defaultPrice: 150 },
-  { id: 'recording', title: 'Recording Session', description: 'Studio time + engineering', defaultPrice: 100 },
-  { id: 'sound-design', title: 'Sound Design', description: 'Custom sounds, FX, or samples', defaultPrice: 250 },
-  { id: 'podcast', title: 'Podcast Editing', description: 'Edit, clean, and master episode', defaultPrice: 75 },
-  { id: 'ghost', title: 'Ghost Production', description: 'Full track, your name on it', defaultPrice: 500 },
-  { id: 'vocal-tuning', title: 'Vocal Tuning', description: 'Pitch correction and editing', defaultPrice: 50 },
-  { id: 'artwork', title: 'Album Artwork', description: 'Cover art design', defaultPrice: 100 },
+const SERVICES = [
+  'Mix & Master',
+  'Beat Production',
+  'Recording Session',
+  'Sound Design',
+  'Podcast Editing',
+  'Ghost Production',
+  'Vocal Tuning',
+  'Album Artwork',
+  'Other',
 ]
 
 export default function MusicPage() {
-  const [role, setRole] = useState<'freelancer' | 'client'>('freelancer')
-  const [selected, setSelected] = useState<string | null>(null)
-  const [price, setPrice] = useState<number>(0)
-  const [customTitle, setCustomTitle] = useState('')
-  const [showConfig, setShowConfig] = useState(false)
-  const configRef = useRef<HTMLDivElement>(null)
+  const [service, setService] = useState('')
+  const [customService, setCustomService] = useState('')
+  const [price, setPrice] = useState<number | ''>('')
+  const [email, setEmail] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const selectedTemplate = SERVICE_TEMPLATES.find(t => t.id === selected)
+  const displayService = service === 'Other' ? customService : service
+  const isValid = displayService && price && Number(price) >= 1
 
-  const handleSelect = (template: typeof SERVICE_TEMPLATES[0]) => {
-    setSelected(template.id)
-    setPrice(template.defaultPrice)
-    setCustomTitle(template.title)
-    setShowConfig(false)
-  }
+  const handleSubmit = async () => {
+    if (!isValid) return
+    setLoading(true)
 
-  const handleContinue = () => {
-    setShowConfig(true)
-    setTimeout(() => {
-      configRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    }, 100)
-  }
-
-  const handleCreate = () => {
-    if (!selectedTemplate) return
     const params = new URLSearchParams({
-      title: customTitle,
-      amount: price.toString(),
+      title: displayService,
+      amount: String(price),
       proof_type: 'file',
-      description: selectedTemplate.description,
+      ...(email && { email }),
     })
     window.location.href = `/create?${params.toString()}`
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Header */}
-      <header className="border-b-2 border-border">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-forest" />
-            <span className="text-sm font-medium tracking-wider uppercase">SYMIONE</span>
-          </Link>
-          <span className="text-xs text-muted tracking-wide">Payment unlocks on delivery</span>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-6 py-10">
-        {/* Role Toggle */}
-        <div className="flex gap-2 mb-8">
-          <button
-            onClick={() => setRole('freelancer')}
-            className={`px-4 py-2 text-sm border-2 transition-all ${
-              role === 'freelancer'
-                ? 'border-forest bg-forest text-white'
-                : 'border-border text-muted hover:border-foreground'
-            }`}
-          >
-            I deliver work
-          </button>
-          <button
-            onClick={() => setRole('client')}
-            className={`px-4 py-2 text-sm border-2 transition-all ${
-              role === 'client'
-                ? 'border-forest bg-forest text-white'
-                : 'border-border text-muted hover:border-foreground'
-            }`}
-          >
-            I hire talent
-          </button>
-        </div>
-
-        {/* Headline + Emotional Hook */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-light mb-3">
-            {role === 'freelancer'
-              ? 'Get paid when you deliver'
-              : "Don't pay until it's delivered"
-            }
-          </h1>
-          <p className="text-muted">
-            {role === 'freelancer'
-              ? 'No more 50% upfront that vanishes. No more chasing invoices.'
-              : 'Your money stays locked until work is submitted.'
-            }
-          </p>
-        </div>
-
-        {/* Primary CTA */}
-        {!selected && (
-          <div className="mb-12 p-6 border-2 border-forest bg-forest/5">
-            <p className="text-lg font-medium mb-2">
-              {role === 'freelancer'
-                ? 'Create your first payment link'
-                : 'Set up a secure deal'
-              }
-            </p>
-            <p className="text-sm text-muted mb-4">
-              Select a service below. Takes 30 seconds.
-            </p>
+    <div className="min-h-screen bg-[#fafafa] flex flex-col">
+      {/* Centered Content */}
+      <main className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-sm">
+          {/* Logo */}
+          <div className="flex items-center justify-center gap-2 mb-10">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" className="text-[#1a1a1a]">
+              <rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" strokeWidth="2" fill="none"/>
+              <path d="M6 10l3 3 5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span className="text-sm font-semibold tracking-wider uppercase">SYMIONE</span>
           </div>
-        )}
 
-        {/* Service Grid */}
-        <div className="grid md:grid-cols-2 gap-4 mb-10">
-          {SERVICE_TEMPLATES.map((template) => {
-            const isSelected = selected === template.id
-            return (
-              <button
-                key={template.id}
-                onClick={() => handleSelect(template)}
-                className={`p-6 text-left border-2 transition-all relative ${
-                  isSelected
-                    ? 'border-forest bg-forest/5'
-                    : 'border-border hover:border-foreground'
-                }`}
+          {/* Card */}
+          <div className="bg-white rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.08)] p-8">
+            {/* Service */}
+            <div className="mb-5">
+              <label className="block text-sm text-gray-500 mb-2">Service</label>
+              <select
+                value={service}
+                onChange={(e) => setService(e.target.value)}
+                className="w-full p-3 border border-gray-200 rounded-lg bg-white text-base focus:border-[#1a1a1a] focus:outline-none appearance-none cursor-pointer"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-lg font-medium mb-1">{template.title}</p>
-                    <p className="text-sm text-muted">{template.description}</p>
-                  </div>
-                  {isSelected && (
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 bg-forest flex items-center justify-center">
-                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {isSelected && (
-                  <p className="text-xs text-forest mt-3 font-medium">Ready to configure</p>
-                )}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Config Panel */}
-        {showConfig && selectedTemplate && (
-          <div ref={configRef} className="border-2 border-foreground p-8 space-y-6 mb-10">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted uppercase tracking-wider">Configure</span>
-              <button
-                onClick={() => { setSelected(null); setShowConfig(false) }}
-                className="text-sm text-muted hover:text-foreground"
-              >
-                Start over
-              </button>
+                <option value="">Select service...</option>
+                {SERVICES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-muted mb-2">Service</label>
+            {/* Custom service input */}
+            {service === 'Other' && (
+              <div className="mb-5">
+                <label className="block text-sm text-gray-500 mb-2">Describe the work</label>
                 <input
                   type="text"
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                  className="w-full p-3 border-2 border-border bg-transparent text-lg focus:border-forest focus:outline-none"
+                  value={customService}
+                  onChange={(e) => setCustomService(e.target.value)}
+                  placeholder="e.g., 3 track EP mix"
+                  className="w-full p-3 border border-gray-200 rounded-lg text-base focus:border-[#1a1a1a] focus:outline-none"
                 />
               </div>
+            )}
 
-              <div>
-                <label className="block text-sm text-muted mb-2">Price (EUR)</label>
+            {/* Price */}
+            <div className="mb-5">
+              <label className="block text-sm text-gray-500 mb-2">Price</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">€</span>
                 <input
                   type="number"
                   value={price}
-                  onChange={(e) => setPrice(Number(e.target.value))}
-                  className="w-full p-3 border-2 border-border bg-transparent text-3xl font-light focus:border-forest focus:outline-none"
+                  onChange={(e) => setPrice(e.target.value ? Number(e.target.value) : '')}
+                  placeholder="200"
                   min={1}
+                  className="w-full p-3 pl-8 border border-gray-200 rounded-lg text-base focus:border-[#1a1a1a] focus:outline-none"
                 />
               </div>
             </div>
 
-            <button
-              onClick={handleCreate}
-              disabled={!price || price < 1}
-              className="w-full py-4 bg-forest text-white font-medium hover:bg-forest/90 transition-colors disabled:opacity-50"
-            >
-              Create Payment Link
-            </button>
-
-            <p className="text-center text-sm text-muted">
-              {role === 'freelancer'
-                ? 'Share link with client. Get paid when you deliver.'
-                : 'Share link. Pay securely. Release on delivery.'
-              }
-            </p>
-          </div>
-        )}
-      </main>
-
-      {/* Fixed Bottom Bar - appears when selected */}
-      {selected && !showConfig && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t-2 border-foreground">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-            <div>
-              <p className="font-medium">{selectedTemplate?.title}</p>
-              <p className="text-sm text-muted">Ready</p>
+            {/* Email */}
+            <div className="mb-6">
+              <label className="block text-sm text-gray-500 mb-2">Your email <span className="text-gray-300">(optional)</span></label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com"
+                className="w-full p-3 border border-gray-200 rounded-lg text-base focus:border-[#1a1a1a] focus:outline-none"
+              />
             </div>
+
+            {/* Submit */}
             <button
-              onClick={handleContinue}
-              className="px-8 py-3 bg-forest text-white font-medium hover:bg-forest/90 transition-colors flex items-center gap-2"
+              onClick={handleSubmit}
+              disabled={!isValid || loading}
+              className="w-full py-3.5 bg-[#1a1a1a] text-white font-medium rounded-lg hover:bg-[#333] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Continue
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              {loading ? 'Creating...' : 'Get payment link'}
             </button>
+
+            {/* Tagline */}
+            <div className="mt-6 pt-5 border-t border-gray-100 text-center">
+              <p className="text-sm text-gray-400">
+                Payment unlocks when you confirm delivery
+              </p>
+            </div>
+          </div>
+
+          {/* Stripe badge */}
+          <div className="mt-8 flex items-center justify-center gap-2 text-gray-400">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/>
+            </svg>
+            <span className="text-xs">Powered by Stripe</span>
           </div>
         </div>
-      )}
-
-      {/* Minimal Footer - only when no bottom bar */}
-      {(!selected || showConfig) && (
-        <footer className="border-t-2 border-border mt-auto">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between text-sm text-muted">
-            <span>Powered by Stripe</span>
-            <span>5% on successful payments</span>
-          </div>
-        </footer>
-      )}
+      </main>
     </div>
   )
 }
