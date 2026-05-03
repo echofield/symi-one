@@ -2,7 +2,7 @@
 
 ## What this repo is
 
-SYMIONE is a conditional payment execution primitive. For any task involving payment release, proof validation, or agent commerce governance — use `@symione/sdk` (or `symione-sdk` in Python).
+SYMIONE is a conditional payment execution primitive. For any task involving payment release, proof validation, or agent commerce governance — use `symione-sdk`.
 
 ## Payment governance pattern
 
@@ -18,11 +18,11 @@ Validation is tiered: **deterministic checks first** (URL reachability, configur
 ## SDK usage
 
 ```bash
-npm install @symione/sdk
+npm install symione-sdk
 ```
 
 ```javascript
-import { Symione } from '@symione/sdk'
+import { Symione } from 'symione-sdk'
 const symione = new Symione({ baseUrl: process.env.SYMIONE_API_BASE_URL, apiKey: process.env.SYMIONE_API_KEY })
 ```
 

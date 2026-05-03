@@ -1,8 +1,8 @@
 /**
- * Drop-in pattern for Cursor / Claude / Node agents using @symione/sdk.
+ * Drop-in pattern for Cursor / Claude / Node agents using symione-sdk.
  * Set SYMIONE_BASE_URL and SYMIONE_API_KEY in the environment.
  */
-import { Symione } from "@symione/sdk";
+import { Symione } from "symione-sdk";
 
 const client = new Symione({
   baseUrl: process.env.SYMIONE_BASE_URL ?? "http://localhost:8000",

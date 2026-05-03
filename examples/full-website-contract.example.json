@@ -1,0 +1,25 @@
+{
+  "title": "Full website delivery",
+  "description": "Full website delivery contract for a complete website build. The payee is paid only after the submitted production URL passes deterministic availability checks and the website-delivery validation brief.",
+  "amount": "5000.00",
+  "currency": "eur",
+  "proof_type": "url",
+  "validation_config": {
+    "require_status_200": true,
+    "allowed_domains": ["example.com", "www.example.com"],
+    "min_lighthouse_score": 85,
+    "use_ai_validation": true,
+    "validation_tier": "premium",
+    "brief": "Validate the submitted URL as a complete production website, not a placeholder. Required: polished homepage, clear navigation, responsive mobile and desktop layout, real project content, contact or conversion path, SEO title and meta description, and no visible build/runtime errors. Core sections or pages should cover the offer or services, proof/about content, and contact details. Reject blank pages, starter templates, password-gated pages, broken primary navigation, or materially incomplete delivery.",
+    "expected_deliverables": [
+      "Production URL with HTTPS",
+      "Responsive homepage and core website sections/pages",
+      "Working navigation and contact/conversion path",
+      "SEO/social metadata basics",
+      "No visible build errors or placeholder content"
+    ]
+  },
+  "payer_email": "client@example.com",
+  "payee_email": "builder@example.com",
+  "deadline_at": "2026-06-30T18:00:00Z"
+}

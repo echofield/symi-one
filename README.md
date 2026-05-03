@@ -90,6 +90,23 @@ cp .env.example .env.local  # configure
 npm run dev
 ```
 
+## Website Contract Example
+
+Create a SYMIONE execution contract for a full website delivery using the published JS SDK:
+
+```powershell
+npm install symione-sdk
+npm run contract:website -- --dry-run
+
+$env:SYMIONE_API_KEY="sk_..."
+$env:WEBSITE_CONTRACT_AMOUNT="5000.00"
+$env:WEBSITE_CONTRACT_PROJECT_NAME="Client website build"
+$env:WEBSITE_CONTRACT_ALLOWED_DOMAINS="client.com,www.client.com"
+npm run contract:website
+```
+
+The live command creates the execution only. Funding still happens through the SYMIONE fund flow, and the final website URL is submitted later as proof.
+
 ## API
 
 ### Challenges

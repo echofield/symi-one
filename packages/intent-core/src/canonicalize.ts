@@ -213,7 +213,11 @@ export function getProofBytes(proof: ProofSlot): Uint8Array {
  */
 export async function hashCanonical(obj: unknown): Promise<string> {
   const bytes = getCanonicalBytesOf(obj);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+  const hashInput = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength
+  ) as ArrayBuffer;
+  const hashBuffer = await crypto.subtle.digest('SHA-256', hashInput);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
