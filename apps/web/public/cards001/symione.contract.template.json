@@ -1,0 +1,43 @@
+{
+  "contract_kind": "sponsor_funded_output",
+  "intent_card_id": "sponsor-public-build",
+  "intent_card_version": "0.1.0",
+  "parties": {
+    "sponsor": "<sponsor id>",
+    "builder": "<builder id>"
+  },
+  "deliverable": {
+    "title": "<public build title>",
+    "description": "<public artifact description>",
+    "public_location": "<expected URL or repository>"
+  },
+  "acceptance_criteria": [
+    "public URL exists",
+    "artifact matches agreed deliverable",
+    "artifact is delivered before the deadline"
+  ],
+  "deadline": "<ISO 8601 datetime>",
+  "amount": {
+    "value": 0,
+    "currency": "EUR"
+  },
+  "proof_schema": "public_artifact_v1",
+  "settlement": "pay_on_valid_proof",
+  "payment_rail": "stripe_service_payment",
+  "executor_agent": "sponsor-compose-agent",
+  "verifier_agent": "public-artifact-verifier",
+  "forbidden_language": [
+    "bet",
+    "wager",
+    "stake",
+    "winner",
+    "prize",
+    "pool",
+    "escrow"
+  ],
+  "fallbacks": {
+    "invalid_proof": "request_rework_or_dispute",
+    "missed_deadline": "refund_rework_or_dispute",
+    "ambiguous_delivery": "manual_review"
+  }
+}

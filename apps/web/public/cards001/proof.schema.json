@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "id": "public_artifact_v1",
+  "title": "Public Artifact Proof",
+  "type": "object",
+  "required": ["artifact_url", "submitted_at", "claim"],
+  "properties": {
+    "artifact_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Public URL, repository, document, or page where the deliverable exists."
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "claim": {
+      "type": "string",
+      "description": "Short statement explaining how the artifact satisfies the deliverable."
+    },
+    "checks": {
+      "type": "object",
+      "properties": {
+        "url_reachable": { "type": "boolean" },
+        "matches_deliverable": { "type": "boolean" },
+        "before_deadline": { "type": "boolean" },
+        "license_or_access_ok": { "type": "boolean" }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["label", "value"],
+        "properties": {
+          "label": { "type": "string" },
+          "value": { "type": "string" }
+        }
+      }
+    }
+  }
+}

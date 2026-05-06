@@ -1,0 +1,43 @@
+{
+  "id": "sponsor-compose-agent",
+  "name": "Sponsor Compose Agent",
+  "version": "0.1.0",
+  "purpose": "Turn a human sponsorship brief into a structured SYMIONE execution for a public deliverable.",
+  "capabilities": [
+    "brief_parsing",
+    "service_order_composition",
+    "acceptance_criteria_generation",
+    "proof_schema_selection",
+    "stripe_safe_language_check"
+  ],
+  "input_schema": {
+    "type": "object",
+    "required": ["raw_brief"],
+    "properties": {
+      "raw_brief": { "type": "string" },
+      "sponsor_id": { "type": "string" },
+      "builder_hint": { "type": "string" }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "required": ["execution_payload", "language_warnings"],
+    "properties": {
+      "execution_payload": { "$ref": "./symione.contract.template.json" },
+      "language_warnings": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  },
+  "risk_level": "payment-adjacent",
+  "requires_human_approval": true,
+  "symione": {
+    "contract_template": "/cards001/symione.contract.template.json",
+    "proof_schema": "/cards001/proof.schema.json"
+  },
+  "links_to_agents": [
+    "public-artifact-verifier",
+    "delivery-dispute-router"
+  ]
+}

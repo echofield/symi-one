@@ -1,0 +1,30 @@
+{
+  "card_id": "sponsor-public-build",
+  "links_to": [
+    {
+      "id": "sponsor-essay-series",
+      "title": "Sponsor an Essay Series",
+      "reason": "A narrower version of public-build sponsorship for writers and researchers."
+    },
+    {
+      "id": "sponsor-open-source-tool",
+      "title": "Sponsor an Open-Source Tool",
+      "reason": "A developer-native public build with repository-based proof."
+    },
+    {
+      "id": "verify-public-artifact",
+      "title": "Verify a Public Artifact",
+      "reason": "The proof-checking card that closes the execution loop."
+    },
+    {
+      "id": "resolve-disputed-delivery",
+      "title": "Resolve a Disputed Delivery",
+      "reason": "The fallback path when the sponsor and builder disagree."
+    }
+  ],
+  "agents": [
+    "sponsor-compose-agent",
+    "public-artifact-verifier",
+    "delivery-dispute-router"
+  ]
+}

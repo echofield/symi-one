@@ -1,0 +1,49 @@
+{
+  "id": "sponsor-public-build",
+  "version": "0.1.0",
+  "category": "service-commerce",
+  "title": "Sponsor a Public Build",
+  "why": "Commission work that ships in public and resolve payment when proof matches the agreement.",
+  "execution_status": "working",
+  "contract_kind": "sponsor_funded_output",
+  "steps": [
+    "Compose a service order with builder, deliverable, deadline, amount, and proof rule.",
+    "Create a SYMIONE execution using the sponsor-funded output contract template.",
+    "Route payment through a compliant service-commerce rail.",
+    "Collect the public artifact URL or repository as proof.",
+    "Verify proof against the acceptance criteria.",
+    "Resolve settlement: pay on valid proof, otherwise refund, rework, or dispute."
+  ],
+  "tools": [
+    "symione-sdk",
+    "SYMIONE API",
+    "Stripe Connect",
+    "public-artifact-verifier"
+  ],
+  "prompt_template": {
+    "system": "You convert rough sponsorship intent into a precise service-commerce contract. Avoid betting, prize, pool, wager, escrow, or contest language.",
+    "user": "Create a sponsor-funded public build agreement from this brief: {raw_brief}",
+    "format": "json"
+  },
+  "kpis": {
+    "time_to_contract": "under 60 seconds",
+    "proof_surface": "public URL or repository",
+    "settlement_rule": "pay on valid proof"
+  },
+  "risks": [
+    "Vague deliverables create disputes",
+    "Long deadlines should be split into milestones",
+    "Payment copy must avoid escrow, wager, stake, pool, or prize framing"
+  ],
+  "dependencies": [
+    "symione.contract.template.json",
+    "agent.manifest.json",
+    "proof.schema.json"
+  ],
+  "links_to": [
+    "sponsor-essay-series",
+    "sponsor-open-source-tool",
+    "verify-public-artifact",
+    "resolve-disputed-delivery"
+  ]
+}
