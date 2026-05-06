@@ -35,6 +35,37 @@ const artifactLinks = [
   ['links.json', '/cards001/links.json'],
 ]
 
+const serverHandoffSnippet = `import { Symione, createIdempotencyKey } from 'symione-sdk'
+
+const symione = new Symione({
+  baseUrl: process.env.SYMIONE_API_URL!,
+  apiKey: process.env.SYMIONE_API_KEY!,
+})
+
+const execution = await symione.createExecution(
+  {
+    title: 'Sponsor public build',
+    description: payload.raw_brief,
+    amount: '300.00',
+    currency: 'eur',
+    proof_type: 'url',
+    validation_config: {
+      require_status_200: true,
+      use_ai_validation: true,
+      validation_tier: 'standard',
+      brief:
+        'Verify that the submitted public URL matches the sponsor-funded deliverable before the deadline.',
+      contract_kind: 'sponsor_funded_output',
+      intent_card_id: 'sponsor-public-build',
+      proof_schema: 'public_artifact_v1',
+    },
+  },
+  createIdempotencyKey('sponsor-public-build')
+)
+
+// Then create the funding session/link for the sponsor.
+const funding = await symione.fund(execution.execution_id, returnUrl)`
+
 function buildExecutionPayload(rawBrief: string) {
   return {
     contract_kind: 'sponsor_funded_output',
@@ -57,6 +88,13 @@ function buildExecutionPayload(rawBrief: string) {
     executor_agent: 'sponsor-compose-agent',
     verifier_agent: 'public-artifact-verifier',
     next_cards: ['sponsor-essay-series', 'sponsor-open-source-tool', 'verify-public-artifact'],
+    handoff: {
+      current_step: 'draft_payload_generated',
+      browser_effect: 'none',
+      next_step: 'review_then_create_symione_execution_server_side',
+      important:
+        'Generating this payload does not create a live execution, charge a card, or move money. It prepares the reviewed object that a server-side SDK call will submit to SYMIONE.',
+    },
     created_at: new Date().toISOString(),
     signature: 'ed25519:<pending>',
   }
@@ -301,25 +339,29 @@ export default function Cards001Page() {
                   <SummaryRow label="Proof rule" value={agreement.proof} />
                   <SummaryRow label="Settlement" value="Pay on valid proof. Refund, rework, or dispute on miss." />
                   <div className="mt-5 flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() =>
+                  <button
+                    type="button"
+                    onClick={() =>
                         copyText(
                           'agreement',
                           `Sponsor Public Build\nBuilder: ${agreement.builder}\nDeliverable: ${agreement.deliverable}\nDeadline: ${agreement.deadline}\nAmount: EUR ${agreement.amount}\nProof: ${agreement.proof}\nSettlement: Pay on valid proof. Refund, rework, or dispute on miss.`
                         )
                       }
-                      className="card-button"
-                    >
-                      {copied === 'agreement' ? 'Copied' : 'Copy Agreement'}
-                    </button>
-                    <button type="button" onClick={() => setShowSummary(false)} className="card-button card-button-ghost">
-                      Edit
-                    </button>
-                  </div>
+                    className="card-button"
+                  >
+                    {copied === 'agreement' ? 'Copied' : 'Copy Agreement'}
+                  </button>
+                  <button type="button" onClick={() => setShowSummary(false)} className="card-button card-button-ghost">
+                    Edit
+                  </button>
                 </div>
-              ) : null}
-            </CardSection>
+                <p className="mt-3 font-serif text-sm italic text-[#66665f]">
+                  This v0 button copies the agreement only. No SYMIONE execution or payment is created until the
+                  agreement is reviewed and sent through a server-side SDK call.
+                </p>
+              </div>
+            ) : null}
+          </CardSection>
           </>
         ) : (
           <>
@@ -328,6 +370,28 @@ export default function Cards001Page() {
                 A sponsorship is a service-commerce contract in which a sponsor commissions a public deliverable. Settlement is
                 conditional on proof that the artifact exists and matches the agreement.
               </p>
+
+              <div className="mt-5 grid gap-3 border border-[#d6d6ce] bg-white p-5">
+                <div className="text-[10px] uppercase text-[#6f6f68]">What Generate Payload does</div>
+                <ol className="space-y-3 text-sm leading-relaxed text-[#44443e]">
+                  <li>
+                    <span className="font-medium text-[#111111]">1. Drafts the contract object.</span> The raw brief becomes a
+                    structured SYMIONE-compatible envelope.
+                  </li>
+                  <li>
+                    <span className="font-medium text-[#111111]">2. Marks the agent handoff.</span> It names the compose agent,
+                    verifier agent, proof schema, and next cards.
+                  </li>
+                  <li>
+                    <span className="font-medium text-[#111111]">3. Waits for review.</span> Nothing is sent, no card is charged,
+                    and no money moves from this browser page.
+                  </li>
+                  <li>
+                    <span className="font-medium text-[#111111]">4. Server creates the execution.</span> After review, a backend
+                    uses `symione-sdk` to create the live execution and funding link.
+                  </li>
+                </ol>
+              </div>
 
               <div className="mt-5">
                 <Field label="Raw intent">
@@ -345,7 +409,7 @@ export default function Cards001Page() {
 
               <div className="mt-5 flex flex-wrap gap-3">
                 <button type="button" onClick={generatePayload} className="card-button">
-                  Generate Payload
+                  Generate Draft Payload
                 </button>
                 <button type="button" onClick={loadBuildExample} className="card-button card-button-ghost">
                   Load Example
@@ -378,6 +442,13 @@ export default function Cards001Page() {
               {showPayload ? (
                 <div className="mt-6">
                   <CodePanel label="symione.execution.payload" code={JSON.stringify(payload, null, 2)} />
+                  <p className="mt-3 font-serif text-sm italic text-[#66665f]">
+                    Payload generated locally. Review it, then submit it from a trusted server. Do not put a SYMIONE API key
+                    in the browser.
+                  </p>
+                  <div className="mt-6">
+                    <CodePanel label="server-side symione-sdk handoff" code={serverHandoffSnippet} />
+                  </div>
                   <button
                     type="button"
                     onClick={() => copyText('payload', JSON.stringify(payload, null, 2))}
